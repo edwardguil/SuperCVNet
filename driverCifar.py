@@ -44,7 +44,7 @@ optimizer = optim.SGD(model.global_network.parameters(), lr=learning_rate)
 
 # Training loop
 for epoch in range(num_epochs):
-    for i, data in enumerate(paired_trainloader, 0):
+    for i, data in enumerate(paired_trainloader):
         inputs, positive_inputs, labels = data
         inputs, positive_inputs, labels = inputs.to(device), positive_inputs.to(device), labels.to(device)
 
@@ -52,16 +52,14 @@ for epoch in range(num_epochs):
 
         # Forward pass
         global_features, momentum_features = model(inputs, positive_inputs)
-        print(torch.isnan(global_features).any())
-        print(torch.isnan(momentum_features).any())
-
+        
         # Calculate loss
         loss_cls = classification_loss_fn(global_features, labels)
         loss_con = momentum_contrastive_loss_fn(global_features, momentum_features, labels)
 
         # Total loss
         loss = lambda_cls * loss_cls + lambda_con * loss_con
-        
+
         # Backward pass and optimize
         loss.backward()
         optimizer.step()

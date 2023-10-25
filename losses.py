@@ -17,12 +17,58 @@ class ClassificationLoss(torch.nn.Module):
         """
         # Getting the curricular face margined cosine similarity
         margined_cosine_similarity = self.curricular_face(dq_g, labels)
+        numerator = torch.exp(margined_cosine_similarity[range(len(labels)), labels] / self.tau)
+        denominator = torch.sum(torch.exp(margined_cosine_similarity / self.tau), dim=1)
+
+        # Add epislon to stop 0 values in numerator leading to inf values in log
+        epsilon = 1e-10
+        loss = -torch.log((numerator + epsilon) / denominator)        
         
-        # Calculate the classification loss based on the specified formula
-        L_cls = -torch.log(torch.exp(margined_cosine_similarity[range(len(labels)), labels] / self.tau) /
-                           torch.sum(torch.exp(margined_cosine_similarity / self.tau), dim=1))
+        return loss.mean()
+
+class MomentumContrastiveLoss(torch.nn.Module):
+    def __init__(self, num_classes, feature_dim=2048, tau=0.05, s=64.0, m=0.5, queue_size=8192):
+        super(MomentumContrastiveLoss, self).__init__()
+        self.feature_dim = 2048
+        self.queue_size = queue_size
+        self.tau = tau
+        self.curricular_face = CurricularFace(in_features=feature_dim, out_features=num_classes, s=s, m=m)  
+        self.queue = TensorQueue(feature_dim=feature_dim, queue_size=queue_size)
+
+    def clear_queue(self):
+        self.queue = TensorQueue(feature_dim=self.feature_dim, queue_size=self.queue_size)
+
+    def forward(self, dq_g, dp_g, labels):
+        """
+        dq_g: Tensor representing the query global descriptor
+        dp_g: Tensor representing the momentum global descriptor 
+        labels: Ground truth labels
+        """
+        # Enqueue the new momentum global descriptors
+        self.queue.enqueue(dp_g, labels)
+
+        # Compute the cosine similarity between dq_g and all descriptors in the queue
+        cosine_similarity_matrix = torch.mm(F.normalize(dq_g), F.normalize(self.queue.get_descriptors()).t())
+
+        # Applying CurricularFace margined cosine similarity only for the positive samples
+        cf_similarity = self.curricular_face(dq_g, labels)  # It should return a vector of similarities
         
-        return L_cls.mean()
+        # Replace the similarities of positive samples in the cosine_similarity_matrix with curricular_face similarities
+        cosine_similarity_matrix[range(len(labels)), labels] = cf_similarity[range(len(labels)), labels]
+
+        # Get the positive and negative samples based on labels
+        positives, negatives = self.queue.find_samples(labels)
+
+        # Compute the loss according to the equation
+        numerator = torch.exp(cosine_similarity_matrix[positives.t()] / self.tau)
+        denominator = numerator + torch.sum(torch.exp(cosine_similarity_matrix[negatives.t()] / self.tau), dim=0)
+        
+        # Add epislon to stop 0 values in numerator leading to inf values in log
+        epsilon = 1e-10
+        loss = -torch.log((numerator + epsilon) / denominator).mean()
+
+        return loss
+    
 
 
 class  CurricularFace(nn.Module):
@@ -137,47 +183,6 @@ class  CurricularFace(nn.Module):
 
             return output
     
-
-class MomentumContrastiveLoss(torch.nn.Module):
-    def __init__(self, num_classes, feature_dim=2048, tau=0.05, s=64.0, m=0.5, queue_size=8192):
-        super(MomentumContrastiveLoss, self).__init__()
-        self.feature_dim = 2048
-        self.queue_size = queue_size
-        self.tau = tau
-        self.curricular_face = CurricularFace(in_features=feature_dim, out_features=num_classes, s=s, m=m)  
-        self.queue = TensorQueue(feature_dim=feature_dim, queue_size=queue_size)
-
-    def clear_queue(self):
-        self.queue = TensorQueue(feature_dim=self.feature_dim, queue_size=self.queue_size)
-
-    def forward(self, dq_g, dp_g, labels):
-        """
-        dq_g: Tensor representing the query global descriptor
-        dp_g: Tensor representing the momentum global descriptor 
-        labels: Ground truth labels
-        """
-        # Enqueue the new momentum global descriptor and dequeue the last one
-        self.queue.enqueue(dp_g, labels)
-
-        # Compute the cosine similarity between dq_g and all descriptors in the queue
-        cosine_similarity_matrix = torch.mm(F.normalize(dq_g), F.normalize(self.queue.get_descriptors()).t())
-
-        # Applying CurricularFace margined cosine similarity only for the positive samples
-        cf_similarity = self.curricular_face(dq_g, labels)  # It should return a vector of similarities
-        
-        # Replace the similarities of positive samples in the cosine_similarity_matrix with curricular_face similarities
-        cosine_similarity_matrix[range(len(labels)), labels] = cf_similarity[range(len(labels)), labels]
-
-        # Get the positive and negative samples based on labels
-        positives, negatives = self.queue.find_samples(labels)
-
-        # Compute the loss according to the equation
-        numerator = torch.exp(cosine_similarity_matrix[positives.t()] / self.tau)
-        denominator = numerator + torch.sum(torch.exp(cosine_similarity_matrix[negatives.t()] / self.tau), dim=0)
-        
-        loss = -torch.log(numerator / denominator).mean()
-
-        return loss
     
 class TensorQueue(torch.nn.Module):
     def __init__(self, feature_dim=2048, queue_size=8192):
