@@ -45,11 +45,11 @@ class CVNetGlobal(torch.nn.Module):
         self.global_network = GlobalNetwork(num_classes, feature_dim)
         self.momentum_network = MomentumNetwork(num_classes, feature_dim)
 
-    def forward(self, x, with_momentum=True):
+    def forward(self, x, x_positive, with_momentum=True):
         global_features = self.global_network(x)
         if with_momentum:
             with torch.no_grad():  # no gradient to momentum features
-                momentum_features = self.momentum_network(x)
+                momentum_features = self.momentum_network(x_positive)
             return global_features, momentum_features
         else:
             return global_features

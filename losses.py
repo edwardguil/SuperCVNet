@@ -172,8 +172,8 @@ class MomentumContrastiveLoss(torch.nn.Module):
         positives, negatives = self.queue.find_samples(labels)
 
         # Compute the loss according to the equation
-        numerator = torch.exp(cosine_similarity_matrix[positives] / self.tau)
-        denominator = numerator + torch.sum(torch.exp(cosine_similarity_matrix[negatives] / self.tau), dim=0)
+        numerator = torch.exp(cosine_similarity_matrix[positives.t()] / self.tau)
+        denominator = numerator + torch.sum(torch.exp(cosine_similarity_matrix[negatives.t()] / self.tau), dim=0)
         
         loss = -torch.log(numerator / denominator).mean()
 
@@ -184,11 +184,11 @@ class TensorQueue(torch.nn.Module):
         super(TensorQueue, self).__init__()
         self.queue_size = queue_size
         self.index = 0 
-        self.register_buffer("queue", torch.randn(feature_dim, queue_size))
+        self.register_buffer("queue", torch.randn(queue_size, feature_dim))
         self.register_buffer("labels", torch.empty(queue_size, dtype=torch.long))
         
     def enqueue(self, tensor, labels):
-        batch_size = tensor.shape[1]
+        batch_size = tensor.shape[0]
         if self.index + batch_size > self.queue_size:
             # If not enough space, overwrite the oldest data
             remain_space = self.queue_size - self.index
@@ -199,10 +199,7 @@ class TensorQueue(torch.nn.Module):
             self.index = batch_size - remain_space
         else:
             # If enough space, just add
-            print(tensor.shape)
-            print(labels.shape)
-            print(self.queue.shape)
-            self.queue[:, self.index:self.index+batch_size] = tensor
+            self.queue[self.index:self.index+batch_size, :] = tensor
             self.labels[self.index:self.index+batch_size] = labels
             self.index += batch_size
         
@@ -212,8 +209,9 @@ class TensorQueue(torch.nn.Module):
     def get_queue(self):
         return self.queue, self.labels
     
-    def find_samples(self, labels):
-        positives_mask = self.labels.unsqueeze(0) == labels.unsqueeze(1)
+    def find_samples(self, labels):     
+        positives_mask = self.labels.unsqueeze(1) == labels.unsqueeze(0)
         negatives_mask = ~positives_mask
+        print(positives_mask.shape)
         return positives_mask, negatives_mask
 

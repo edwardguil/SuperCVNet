@@ -5,6 +5,7 @@ import torchvision
 import torchvision.transforms as transforms
 from models import CVNetGlobal
 from losses import ClassificationLoss, MomentumContrastiveLoss
+from datasets import PairedCIFAR10
 
 # Hyperparameters
 tau = 1/30
@@ -25,7 +26,9 @@ transform = transforms.Compose([
 ])
 
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
+paired_trainset = PairedCIFAR10(trainset)
+paired_trainloader = DataLoader(paired_trainset, batch_size=batch_size, shuffle=True)
+
 
 # Initialize your model
 model = CVNetGlobal(num_classes)
@@ -41,14 +44,16 @@ optimizer = optim.SGD(model.global_network.parameters(), lr=learning_rate)
 
 # Training loop
 for epoch in range(num_epochs):
-    for i, data in enumerate(trainloader, 0):
-        inputs, labels = data
-        inputs, labels = inputs.to(device), labels.to(device)
+    for i, data in enumerate(paired_trainloader, 0):
+        inputs, positive_inputs, labels = data
+        inputs, positive_inputs, labels = inputs.to(device), positive_inputs.to(device), labels.to(device)
 
         optimizer.zero_grad()
 
         # Forward pass
-        global_features, momentum_features = model(inputs)
+        global_features, momentum_features = model(inputs, positive_inputs)
+        print(torch.isnan(global_features).any())
+        print(torch.isnan(momentum_features).any())
 
         # Calculate loss
         loss_cls = classification_loss_fn(global_features, labels)
@@ -56,17 +61,13 @@ for epoch in range(num_epochs):
 
         # Total loss
         loss = lambda_cls * loss_cls + lambda_con * loss_con
-
-
-        exit()
-
+        
         # Backward pass and optimize
         loss.backward()
         optimizer.step()
     
         # Print statistics
-        if i % 200 == 199:  # Print every 200 mini-batches
-            print(f"[{epoch + 1}, {i + 1}] loss: {loss.item()}")
+        print(f"[{epoch + 1}, {i + 1}] class_loss: {loss_cls.item()} contrast: {loss_con.item()}")
     
     # As per paper, queue is reset on each iteration
     momentum_contrastive_loss_fn.clear_queue()
