@@ -5,11 +5,10 @@ import numpy as np
 import math
 
 class ClassificationLoss(torch.nn.Module):
-    def __init__(self, num_classes, feature_dim=2048, tau=0.05, s=64.0, m=0.5, device=None):
+    def __init__(self, num_classes, feature_dim=2048, tau=0.05, s=64.0, m=0.5):
         super(ClassificationLoss, self).__init__()
         self.tau = tau
-        self.device = device if device else torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.curricular_face = CurricularFace(in_features=feature_dim, out_features=num_classes, s=s, m=m, device=self.device)
+        self.curricular_face = CurricularFace(in_features=feature_dim, out_features=num_classes, s=s, m=m)
         
     def forward(self, dq_g, labels):
         """
@@ -28,17 +27,16 @@ class ClassificationLoss(torch.nn.Module):
         return loss.mean()
 
 class MomentumContrastiveLoss(torch.nn.Module):
-    def __init__(self, num_classes, feature_dim=2048, tau=0.05, s=64.0, m=0.5, queue_size=8192, device=None):
+    def __init__(self, num_classes, feature_dim=2048, tau=0.05, s=64.0, m=0.5, queue_size=8192):
         super(MomentumContrastiveLoss, self).__init__()
         self.feature_dim = 2048
         self.queue_size = queue_size
         self.tau = tau
-        self.device = device if device else torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.curricular_face = CurricularFace(in_features=feature_dim, out_features=num_classes, s=s, m=m, device=self.device)  
-        self.queue = TensorQueue(feature_dim=feature_dim, queue_size=queue_size, device=self.device)
+        self.curricular_face = CurricularFace(in_features=feature_dim, out_features=num_classes, s=s, m=m)  
+        self.queue = TensorQueue(feature_dim=feature_dim, queue_size=queue_size)
 
     def clear_queue(self):
-        self.queue = TensorQueue(feature_dim=self.feature_dim, queue_size=self.queue_size, device=self.device)
+        self.queue = TensorQueue(feature_dim=self.feature_dim, queue_size=self.queue_size)
 
     def forward(self, dq_g, dp_g, labels):
         """
@@ -113,7 +111,7 @@ class  CurricularFace(nn.Module):
     """  # noqa: RST215
 
     def __init__(  # noqa: D107
-        self, in_features: int, out_features: int, s: float = 64.0, m: float = 0.5, device=None
+        self, in_features: int, out_features: int, s: float = 64.0, m: float = 0.5,
     ):
         super(CurricularFace, self).__init__()
 
@@ -121,17 +119,16 @@ class  CurricularFace(nn.Module):
         self.out_features = out_features
         self.m = m
         self.s = s
-        self.device = device if device else torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         self.cos_m = math.cos(m)
         self.sin_m = math.sin(m)
         self.threshold = math.cos(math.pi - m)
         self.mm = math.sin(math.pi - m) * m
 
-        self.weight = nn.Parameter(torch.Tensor(in_features, out_features)).to(self.device)
-        self.register_buffer("t", torch.zeros(1)).to(device)
+        self.weight = nn.Parameter(torch.Tensor(in_features, out_features))
+        self.register_buffer("t", torch.zeros(1))
 
-        nn.init.normal_(self.weight, std=0.01).to(self.device)
+        nn.init.normal_(self.weight, std=0.01)
 
     def __repr__(self) -> str:  # noqa: D105
         rep = (
@@ -188,13 +185,12 @@ class  CurricularFace(nn.Module):
     
     
 class TensorQueue(torch.nn.Module):
-    def __init__(self, feature_dim=2048, queue_size=8192, device=None):
+    def __init__(self, feature_dim=2048, queue_size=8192):
         super(TensorQueue, self).__init__()
         self.queue_size = queue_size
         self.index = 0 
-        self.device = device if device else torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.register_buffer("queue", torch.randn(queue_size, feature_dim)).to(device)
-        self.register_buffer("labels", torch.empty(queue_size, dtype=torch.long)).to(device)
+        self.register_buffer("queue", torch.randn(queue_size, feature_dim))
+        self.register_buffer("labels", torch.empty(queue_size, dtype=torch.long))
         
     def enqueue(self, tensor, labels):
         batch_size = tensor.shape[0]

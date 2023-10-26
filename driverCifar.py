@@ -38,7 +38,10 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
 classification_loss_fn = ClassificationLoss(num_classes, tau=tau)
-momentum_contrastive_loss_fn = MomentumContrastiveLoss(num_classes, tau=tau) 
+momentum_contrastive_loss_fn = MomentumContrastiveLoss(num_classes, tau=tau)
+
+classification_loss_fn.to(device)
+momentum_contrastive_loss_fn.to(device)
 
 optimizer = optim.SGD(model.global_network.parameters(), lr=learning_rate)
 
