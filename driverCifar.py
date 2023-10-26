@@ -12,7 +12,7 @@ tau = 1/30
 momentum = 0.999
 lambda_cls = 0.5
 lambda_con = 0.5
-learning_rate = 0.00001
+learning_rate = 0.0015
 batch_size = 128
 num_epochs = 25
 
