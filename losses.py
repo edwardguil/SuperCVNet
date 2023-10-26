@@ -20,9 +20,11 @@ class ClassificationLoss(torch.nn.Module):
         numerator = torch.exp(margined_cosine_similarity[range(len(labels)), labels] / self.tau)
         denominator = torch.sum(torch.exp(margined_cosine_similarity / self.tau), dim=1)
 
+        print("Numerator: ", numerator.isnan().any() or numerator.isinf().any())
+        print("Demoninator: ", denominator.isnan().any() or denominator.isinf().any())
         # Add epislon to stop 0 values in numerator leading to inf values in log
         epsilon = 1e-10
-        loss = -torch.log((numerator / denominator) + epsilon)        
+        loss = -torch.log((numerator + epsilon) / (denominator + epsilon))        
         
         return loss.mean()
 
@@ -65,7 +67,7 @@ class MomentumContrastiveLoss(torch.nn.Module):
         
         # Add epislon to stop 0 values in numerator leading to inf values in log
         epsilon = 1e-10
-        loss = -torch.log((numerator / denominator) + epsilon).mean()
+        loss = -torch.log((numerator + epsilon) / (denominator + epsilon)).mean()
 
         return loss
     
