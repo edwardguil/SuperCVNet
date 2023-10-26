@@ -1,7 +1,7 @@
 # Correlation Verification for Image Retrieval
+Welcome to an unofficial repository that houses a PyTorch implementation of the image retrieval network presented in the research paper, [Correlation Verification for Image Retrieval](https://openaccess.thecvf.com/content/CVPR2022/html/Lee_Correlation_Verification_for_Image_Retrieval_CVPR_2022_paper.html) [1]. An official repository for this paper does [exist](https://github.com/sungonce/CVNet/tree/main), but unfortunately, it lacks the comprehensive code necessary for reproducing training results due to cited intellectual property concerns.
 
-This repository contains an unofficial Pytorch implementation of the image retrieval network proposed in the paper [Correlation Verification for Image Retrieval](https://openaccess.thecvf.com/content/CVPR2022/html/Lee_Correlation_Verification_for_Image_Retrieval_CVPR_2022_paper.html) [1]. While an official repository for this paper [exists](https://github.com/sungonce/CVNet/tree/main), the authors failed to release code to reproduce the results via training, citing intellectual property [issues](https://github.com/sungonce/CVNet/issues/1#issuecomment-1161781271). 
+This repository has been built with the objective to bridge this gap by providing a more complete and coherent codebase. Initiative has been taken to include a well-structured training loop and aimed to encapsulate the full essence of the network proposed in the original paper through better OOP design. This in hopes to promote more rapid and straightforward reproducibility and facilitates smoother training transitions on novel datasets.
 
-This repository aims to solve this. In addition to including a training loop, it aims to include the full network proposed in the paper in a more easily understood way, through better OOP design. With the goal to allow faster reproducability, a easier training on new datasets.
-
-
+## References 
+[1] Lee, S., Seong, H., Lee, S., & Kim, E. (2022). Correlation Verification for Image Retrieval. 2022 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), 5364-5374.
