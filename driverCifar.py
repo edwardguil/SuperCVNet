@@ -97,10 +97,9 @@ def main(lr):
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
     lr = None
-    if "lr" in args[0]:
-        lr = float(args[0][2:])
+    if "lr" in sys.argv[0]:
+        lr = float(sys.argv[0][2:])
 
     main(lr)
 
