@@ -3,9 +3,10 @@ import torch.nn.functional as F
 import torch.nn as nn
 
 class GeM(nn.Module):
-    def __init__(self, p=3, eps=1e-6):
+    def __init__(self, p=3, eps=1e-6, device=None):
         super(GeM,self).__init__()
-        self.p = nn.Parameter(torch.ones(1)*p)
+        self.device = device if device else torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.p = nn.Parameter(torch.ones(1)*p).to(self.device)
         self.eps = eps
 
     def forward(self, x):
