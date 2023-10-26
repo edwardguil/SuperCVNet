@@ -74,5 +74,6 @@ for epoch in range(num_epochs):
     
     # As per paper, queue is reset on each iteration
     momentum_contrastive_loss_fn.clear_queue()
+    momentum_contrastive_loss_fn.to(device)
 
 print('Finished Training')
