@@ -4,13 +4,13 @@ from collections import defaultdict
 import os, json
 
 class PairedCIFAR10(Dataset):
-    def __init__(self, cifar_dataset):
+    def __init__(self, cifar_dataset, file="./data/cifar10_pair_cache.json"):
         self.cifar_dataset = cifar_dataset
         self.label_to_indices = defaultdict(list)
         
-        if os.path.exists("cache.json"):
+        if os.path.exists(file):
             print("Using cache found for dataset pairings")
-            with open("cache.json", "r+") as f:
+            with open(file, "r+") as f:
                 self.label_to_indices = json.load(f)
 
             self.label_to_indices = {int(k): v for k, v in self.label_to_indices.items()}
@@ -18,7 +18,7 @@ class PairedCIFAR10(Dataset):
             for index, (_, label) in enumerate(self.cifar_dataset):
                 self.label_to_indices[label].append(index)
 
-            with open("cache.json", "w+") as f:
+            with open(file, "w+") as f:
                 json.dump(self.label_to_indices, f)
         
     def __len__(self):
