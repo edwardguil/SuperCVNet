@@ -13,18 +13,18 @@ momentum = 0.999
 lambda_cls = 0.5
 lambda_con = 0.5
 learning_rate = 0.005625
-batch_size = 32 
+batch_size = 128
 num_epochs = 25
 
 reduction_dim = 2048
 num_classes = 10
+
 # Load CIFAR-10 dataset
 transform = transforms.Compose([
     transforms.Resize(224),  # Resize the images to 224x224
     transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    transforms.Normalize((0.49139968, 0.48215841, 0.44653091), (0.24703223, 0.24348513, 0.26158784))
 ])
-
 
 # Initialize your model
 model = CVNetGlobal(reduction_dim)
