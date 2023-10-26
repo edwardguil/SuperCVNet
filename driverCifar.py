@@ -8,19 +8,19 @@ from losses import ClassificationLoss, MomentumContrastiveLoss
 from datasets import PairedCIFAR10
 import sys
 
-# Hyperparameters
-tau = 1/30
-momentum = 0.999
-lambda_cls = 0.5
-lambda_con = 0.5
-learning_rate = 0.0015 # 0.005625 paper learning rate
-batch_size = 144 # 144 paper batch size
-num_epochs = 25
-
-reduction_dim = 2048
-num_classes = 10
-
 def main(lr):
+    # Hyperparameters
+    tau = 1/30
+    momentum = 0.999
+    lambda_cls = 0.5
+    lambda_con = 0.5
+    learning_rate = 0.0015 # 0.005625 paper learning rate
+    batch_size = 144 # 144 paper batch size
+    num_epochs = 25
+
+    reduction_dim = 2048
+    num_classes = 10
+
     if lr:
         learning_rate = lr
     # Load CIFAR-10 dataset
