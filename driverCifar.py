@@ -48,7 +48,7 @@ optimizer = optim.SGD(model.global_network.parameters(), lr=learning_rate)
 
 # Training loop
 for epoch in range(num_epochs):
-    avg_cls_loss, avg_con_loss = 0
+    avg_cls_loss, avg_con_loss = 0, 0
     for i, data in enumerate(paired_trainloader):
         # Sample data and sent to device
         inputs, positive_inputs, labels = data
@@ -77,10 +77,12 @@ for epoch in range(num_epochs):
         # Save info
         avg_cls_loss += loss_cls.item()
         avg_con_loss += loss_con.item()
+        print(f'           Class Loss: {loss_cls:.4f}, Contrast Loss: {loss_con:.4f}', end='\r')
     
     # Print info
     print(f'Epoch [{epoch+1}/{num_epochs}], Class Loss: {avg_cls_loss/(i + 1):.4f}, Contrast Loss: {avg_con_loss/(i + 1):.4f}')
-    
+    print("")
+
     # As per paper, queue is reset on each iteration
     momentum_contrastive_loss_fn.clear_queue()
     momentum_contrastive_loss_fn.to(device)
