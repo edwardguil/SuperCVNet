@@ -22,7 +22,7 @@ class ClassificationLoss(torch.nn.Module):
 
         # Add epislon to stop 0 values in numerator leading to inf values in log
         epsilon = 1e-10
-        loss = -torch.log((numerator + epsilon) / denominator)        
+        loss = -torch.log((numerator / denominator) + epsilon)        
         
         return loss.mean()
 
@@ -65,7 +65,7 @@ class MomentumContrastiveLoss(torch.nn.Module):
         
         # Add epislon to stop 0 values in numerator leading to inf values in log
         epsilon = 1e-10
-        loss = -torch.log((numerator + epsilon) / denominator).mean()
+        loss = -torch.log((numerator / denominator) + epsilon).mean()
 
         return loss
     
@@ -217,6 +217,5 @@ class TensorQueue(torch.nn.Module):
     def find_samples(self, labels):     
         positives_mask = self.labels.unsqueeze(1) == labels.unsqueeze(0)
         negatives_mask = ~positives_mask
-        print(positives_mask.shape)
         return positives_mask, negatives_mask
 

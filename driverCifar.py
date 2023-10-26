@@ -16,7 +16,7 @@ learning_rate = 0.005625
 batch_size = 32 
 num_epochs = 25
 
-
+reduction_dim = 2048
 num_classes = 10
 # Load CIFAR-10 dataset
 transform = transforms.Compose([
@@ -25,13 +25,13 @@ transform = transforms.Compose([
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
+
+# Initialize your model
+model = CVNetGlobal(reduction_dim)
+
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
 paired_trainset = PairedCIFAR10(trainset)
 paired_trainloader = DataLoader(paired_trainset, batch_size=batch_size, shuffle=True)
-
-
-# Initialize your model
-model = CVNetGlobal(num_classes)
 
 # Moving model to device
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -52,7 +52,7 @@ for epoch in range(num_epochs):
 
         # Forward pass
         global_features, momentum_features = model(inputs, positive_inputs)
-        
+
         # Calculate loss
         loss_cls = classification_loss_fn(global_features, labels)
         loss_con = momentum_contrastive_loss_fn(global_features, momentum_features, labels)
@@ -64,6 +64,8 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
     
+        momentum_dict = {k: v.data for k, v in model.global_network.state_dict().items()}
+        model.momentum_network.load_state_dict(momentum_dict)
         # Print statistics
         print(f"[{epoch + 1}, {i + 1}] class_loss: {loss_cls.item()} contrast: {loss_con.item()}")
     
