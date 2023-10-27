@@ -3,7 +3,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision
 import torchvision.transforms as transforms
-from models import CVNetGlobal
+from models import CVNetGlobal, SuperCVNetGlobal
 from losses import ClassificationLoss, MomentumContrastiveLoss
 from datasets import PairedCIFAR10
 import sys
@@ -15,7 +15,7 @@ def main(lr):
     lambda_cls = 0.5
     lambda_con = 0.5
     learning_rate = 0.0015 # 0.005625 paper learning rate
-    batch_size = 144 # 144 paper batch size
+    batch_size = 1 # 144 paper batch size
     num_epochs = 25
 
     reduction_dim = 2048
@@ -25,13 +25,13 @@ def main(lr):
         learning_rate = lr
     # Load CIFAR-10 dataset
     transform = transforms.Compose([
-        transforms.Resize(64),  # Resize the images to 512x512 (multiples of 64)
+        transforms.Resize(512),  # Resize the images to 256x256 (multiples of 64)
         transforms.ToTensor(),
         transforms.Normalize((0.49139968, 0.48215827, 0.44653124), (0.24703233, 0.24348505, 0.26158768))
     ])
 
     # Initialize model
-    model = CVNetGlobal(reduction_dim)
+    model = SuperCVNetGlobal(reduction_dim, momentum)
 
     train = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
     paired_train = PairedCIFAR10(train)
@@ -91,10 +91,9 @@ def main(lr):
         momentum_contrastive_loss_fn.to(device)
 
         # Save weights
-        torch.save(model.state_dict(), f'CVNetBackboneCifar10-{epoch}.pkl')
+        torch.save(model.state_dict(), f'SuperCVNetBackboneCifar10-{epoch}.pkl')
 
     print('Finished Training')
-
 
 if __name__ == "__main__":
     lr = None
@@ -102,4 +101,3 @@ if __name__ == "__main__":
         lr = float(sys.argv[0][2:])
 
     main(lr)
-
