@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from .curricularface import CurricularFace
-from helpers import TensorQueue
+from helpers.classes import TensorQueue
 
 
 class MomentumContrastiveLoss(torch.nn.Module):

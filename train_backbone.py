@@ -9,7 +9,7 @@ import torch
 def get_args():
     parser = argparse.ArgumentParser(description='Training script for model backbones')
 
-    parser.add_argument('--model', type=str, default='CVNetGlobal', help='Name of the model to train')
+    parser.add_argument('--model', type=str, default='CVNet', help='Name of the model to train')
     parser.add_argument('--dataset', type=str, default='Cifar10', help='Name of the dataset to train on')
     parser.add_argument('--num_epochs', type=int, default=25, help='Number of epochs')
     parser.add_argument('--batch_size', type=int, default=144, help='Batch size')
@@ -26,10 +26,10 @@ if __name__ == '__main__':
     args = get_args()
 
     # Here you can add code to initialize your model and dataset based on the input arguments
-    if args.model.lower() == 'SuperCVNetGlobal'.lower():
+    if args.model.lower() == 'SuperCVNet'.lower():
         model = SuperCVNetGlobal(reduction_dim=args.reduction_dim, momentum=args.momentum)  # you might need to customize the initialization
-    elif args.model.lower() == 'CVNetGlobal'.lower():
-        model = CVNetGlobal(reduction_dim=args.reduction_dim, momentum=args.momemtum)
+    elif args.model.lower() == 'CVNet'.lower():
+        model = CVNetGlobal(reduction_dim=args.reduction_dim, momentum=args.momentum)
     else:
         raise ValueError(f"Model {args.model} dosen't exist. Only: 'SuperCVNetGlobal' or 'CVNetGlobal'")
 
