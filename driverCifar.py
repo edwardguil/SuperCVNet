@@ -5,7 +5,7 @@ import torchvision
 import torchvision.transforms as transforms
 from models import CVNetGlobal
 from losses import ClassificationLoss, MomentumContrastiveLoss
-from datasets import PairedCIFAR10
+from datasets import DatasetPaired
 import sys
 
 def main(lr):
@@ -15,7 +15,7 @@ def main(lr):
     lambda_cls = 0.5
     lambda_con = 0.5
     learning_rate = 0.0015 # 0.005625 paper learning rate
-    batch_size = 144 # 144 paper batch size
+    batch_size = 2 # 144 paper batch size
     num_epochs = 25
 
     reduction_dim = 2048
@@ -34,7 +34,7 @@ def main(lr):
     model = CVNetGlobal(reduction_dim)
 
     train = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-    paired_train = PairedCIFAR10(train)
+    paired_train = DatasetPaired(train)
     paired_trainloader = DataLoader(paired_train, batch_size=batch_size, shuffle=True)
 
     # Moving model to device

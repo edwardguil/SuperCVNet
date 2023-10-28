@@ -15,9 +15,9 @@ class GlobalNetwork(torch.nn.Module):
             self.resnet.relu,
             self.resnet.maxpool,
         )
-        self.layer1 = self.resnet.layer1,
-        self.layer2 = self.resnet.layer2,
-        self.layer3 = self.resnet.layer3,
+        self.layer1 = self.resnet.layer1
+        self.layer2 = self.resnet.layer2
+        self.layer3 = self.resnet.layer3
         self.layer4 = self.resnet.layer4
 
         self.gem_pooling = GeM()
@@ -71,15 +71,11 @@ class SuperGlobalNetwork(GlobalNetwork):
         self.sgem = Sgem()
 
     def _forward_singlescale(self, x, gemp=True, rgem=True):
-        x = self.resnet.conv1(x)
-        x = self.resnet.bn1(x)
-        x = self.resnet.relu(x)
-        x = self.resnet.maxpool(x)
-        
-        x = self.resnet.layer1(x)
-        x = self.resnet.layer2(x)
-        x = self.resnet.layer3(x)
-        x = self.resnet.layer4(x)
+        x = self.stem(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
         
         if rgem:
             x = self.rgem(x)

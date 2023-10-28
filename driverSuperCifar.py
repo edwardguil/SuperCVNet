@@ -5,7 +5,7 @@ import torchvision
 import torchvision.transforms as transforms
 from models import CVNetGlobal, SuperCVNetGlobal
 from losses import ClassificationLoss, MomentumContrastiveLoss
-from datasets import PairedCIFAR10
+from datasets import DatasetPaired
 import sys
 
 def main(lr):
@@ -34,7 +34,7 @@ def main(lr):
     model = SuperCVNetGlobal(reduction_dim, momentum)
 
     train = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-    paired_train = PairedCIFAR10(train)
+    paired_train = DatasetPaired(train)
     paired_trainloader = DataLoader(paired_train, batch_size=batch_size, shuffle=True)
 
     # Moving model to device
