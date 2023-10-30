@@ -41,6 +41,10 @@ def train_backbone(model, dataset, num_classes, num_epochs, batch_size, learning
 
             loss = lambda_cls * loss_cls + lambda_con * loss_con
             loss.backward()
+
+            # To prevent vanishing gradients
+            torch.nn.utils.clip_grad_norm_(model.global_network.parameters(), max_norm=15)
+
             optimizer.step()
 
             momentum_dict = {k: v.data for k, v in model.global_network.state_dict().items()}
@@ -71,8 +75,8 @@ def get_args():
     parser.add_argument('--model', type=str, default='CVNet', help='Name of the model to train')
     parser.add_argument('--dataset', type=str, default='Cifar10', help='Name of the dataset to train on')
     parser.add_argument('--num_epochs', type=int, default=25, help='Number of epochs')
-    parser.add_argument('--batch_size', type=int, default=144, help='Batch size')
-    parser.add_argument('--learning_rate', type=float, default=0.0015, help='Learning rate')
+    parser.add_argument('--batch_size', type=int, default=1, help='Batch size')
+    parser.add_argument('--learning_rate', type=float, default=0.005, help='Learning rate')
     parser.add_argument('--tau', type=float, default=1/30, help='Tau for losses')
     parser.add_argument('--lambda_cls', type=float, default=0.5, help='Lambda for classification loss')
     parser.add_argument('--lambda_con', type=float, default=0.5, help='Lambda for contrastive loss')
