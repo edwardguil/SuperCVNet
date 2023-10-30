@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.transforms.functional as TF
-from layers import GeM, Gemp, Rgem, Sgem, Relup
+from layers import GeM
+from .base import CVLearner, Correlation
 
 class GlobalNetwork(torch.nn.Module):
     def __init__(self, reduction_dim=2048, resnet_depth=50):
@@ -23,13 +22,17 @@ class GlobalNetwork(torch.nn.Module):
         self.gem_pooling = GeM()
         self.whitening = nn.Linear(2048, reduction_dim, bias=False)
 
-    def forward(self, x):
+    def forward(self, x, ret_intermediate=False):
         x = self.stem(x)
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
+        if ret_intermediate:
+            # CVNET uses output from layer3 (s3) without RELU activation
+            # layer3 in this version of ResNet has no final relu. So just return layer3
+            return x
+        
         x = self.layer4(x)
-
         x = self.gem_pooling(x)
         x = x.view(x.size(0), -1)
         x = self.whitening(x)
@@ -61,4 +64,20 @@ class CVNetGlobal(torch.nn.Module):
             return global_features, momentum_features
         else:
             return global_features
-        
+
+class CVNetRerank(torch.nn.Module):
+    def __init__(self, input_dim = 1024):
+        super(CVNetRerank, self).__init__()
+        self.scales = [0.25, 0.5, 1.0]
+        self.num_scales = len(self.scales)
+        self.conv2ds = nn.ModuleList([nn.Conv2d(input_dim, 256, kernel_size=3, padding=1, bias=False) for _ in self.scales])
+        self.cv_learner = CVLearner([self.num_scales**2 for _ in range(3)])
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, query_features, key_features):
+        # requires output from global network intemediate layer
+        # i.e. GlobalNetwork.foward(query_image, ret_intermediate=True)
+        corr = Correlation.build_crossscale_correlation(query_features, key_features, self.scales, self.conv2ds)
+        logits = self.cv_learner(corr)
+        score = self.softmax(logits)[:,1]
+        return score
