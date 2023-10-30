@@ -2,59 +2,53 @@ import argparse, torch, os
 from torchvision.datasets import CIFAR10
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from models import SuperCVNetGlobal, CVNetGlobal
+from models import SuperCVNetGlobal, CVNetGlobal, CVNetRerank, SuperGlobalNetwork, GlobalNetwork
 from datasets import GoogleLandMarks, PairedDataset
 from losses import ClassificationLoss, MomentumContrastiveLoss
 import torchvision.transforms as transforms
 
-def train_backbone(model, dataset, num_classes, num_epochs, batch_size, learning_rate, device, **kwargs):
-    tau = kwargs.get('tau', 1/30)
-    lambda_cls = kwargs.get('lambda_cls', 0.5)
-    lambda_con = kwargs.get('lambda_con', 0.5)
-    save = not kwargs.get('no_save', False) 
-    progress = not kwargs.get('no_progress', False)   
+def train_rerank(model, backbone, dataset, num_classes, num_epochs, batch_size, learning_rate, device, **kwargs):
+    save = not kwargs.get('no_weights', False) 
+    progress = not kwargs.get('no_progress', False)
     
     paired_dataset = PairedDataset(dataset)
     paired_trainloader = DataLoader(paired_dataset, batch_size=batch_size, shuffle=True)
 
-    classification_loss_fn = ClassificationLoss(num_classes, tau=tau)
-    momentum_contrastive_loss_fn = MomentumContrastiveLoss(num_classes, tau=tau)
+    cross_entropy_loss = torch.nn.CrossEntropyLoss()
 
-    classification_loss_fn.to(device)
-    momentum_contrastive_loss_fn.to(device)
+    cross_entropy_loss.to(device)
 
-    optimizer = optim.SGD(model.global_network.parameters(), lr=learning_rate)
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
 
     for epoch in range(num_epochs):
-        avg_cls_loss = 0
-        avg_con_loss = 0
+        avg_loss = 0
         for i, data in enumerate(paired_trainloader):
             inputs, positive_inputs, labels = data
             inputs, positive_inputs, labels = inputs.to(device), positive_inputs.to(device), labels.to(device)
 
             optimizer.zero_grad()
 
-            global_features, momentum_features = model(inputs, positive_inputs)
+            with torch.no_grad():
+                query_features = backbone(inputs, ret_intermediate=True)
+                key_features = backbone(inputs, ret_intermediate=True)
 
-            loss_cls = classification_loss_fn(global_features, labels)
-            loss_con = momentum_contrastive_loss_fn(global_features, momentum_features, labels)
+            rank = model(query_features, key_features)
+            
+            print(rank)
+            print(labels)
+            loss = cross_entropy_loss(rank, labels)
 
-            loss = lambda_cls * loss_cls + lambda_con * loss_con
             loss.backward()
             optimizer.step()
 
-            momentum_dict = {k: v.data for k, v in model.global_network.state_dict().items()}
-            model.momentum_network.load_state_dict(momentum_dict)
+            avg_loss += loss.item()
 
-            # Save info
-            avg_cls_loss += loss_cls.item()
-            avg_con_loss += loss_con.item()
             if progress:
-                print(f'Epoch [{epoch+1}/{num_epochs}], Class Loss: {loss_cls:.4f}, Contrast Loss: {loss_con:.4f}', end='\r')
+                print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss:.4f}', end='\r')
         
         # Print info
         if progress:
-            print(f'Epoch [{epoch+1}/{num_epochs}], Class Loss: {avg_cls_loss/(i + 1):.4f}, Contrast Loss: {avg_con_loss/(i + 1):.4f}', end='\r')
+            print(f'Epoch [{epoch+1}/{num_epochs}], Class Loss: {avg_loss/(i + 1):.4f}', end='\r')
             print('')
 
         if save:
@@ -66,31 +60,37 @@ def train_backbone(model, dataset, num_classes, num_epochs, batch_size, learning
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description='Training script for model backbones')
+    parser = argparse.ArgumentParser(description='Training script for rerank model')
 
     parser.add_argument('--model', type=str, default='CVNet', help='Name of the model to train')
+    parser.add_argument('--backbone', type=str, default='CVNet', help='Name of the backbone for feature extraction')
     parser.add_argument('--dataset', type=str, default='Cifar10', help='Name of the dataset to train on')
     parser.add_argument('--num_epochs', type=int, default=25, help='Number of epochs')
     parser.add_argument('--batch_size', type=int, default=144, help='Batch size')
     parser.add_argument('--learning_rate', type=float, default=0.0015, help='Learning rate')
-    parser.add_argument('--tau', type=float, default=1/30, help='Tau for losses')
-    parser.add_argument('--lambda_cls', type=float, default=0.5, help='Lambda for classification loss')
-    parser.add_argument('--lambda_con', type=float, default=0.5, help='Lambda for contrastive loss')
-    parser.add_argument('--momentum', type=float, default=0.999, help='Momemtum for contrastive loss')
-    parser.add_argument('--reduction_dim', type=int, default=2048, help='Reduction dim size (imbedding size)')
+    parser.add_argument('--reduction_dim', type=int, default=2048, help='The reduction dim on the backbone')
     parser.add_argument('--resnet_depth', type=int, default=50, help='The depth of the underlying ResNet model')
     parser.add_argument('--no_save', action='store_true', default=False, help="Don't save the weights during training")
     parser.add_argument('--no_progress', action='store_true', default=False, help="Don't to print training progress")
 
     return parser.parse_args()
 
+
 def launch_script(args):
-    if args.model.lower() == 'SuperCVNet'.lower():
-        model = SuperCVNetGlobal(args.reduction_dim, args.resnet_depth, args.momentum)
-    elif args.model.lower() == 'CVNet'.lower():
-        model = CVNetGlobal(args.reduction_dim, args.resnet_depth, args.momentum)
+    if args.model.lower() == 'CVNet'.lower():
+        model = CVNetRerank()
+    elif args.model.lower() == 'SuperCVNet'.lower():
+        model = CVNetRerank()
     else:
-        raise ValueError(f"Model {args.model} dosen't exist. Only: 'SuperCVNet' or 'CVNet'")
+        raise ValueError(f"Model {args.model} dosen't exist. Only: 'CVNet' or 'SuperCVNet'")
+
+    if args.backbone.lower() == 'CVNet'.lower():
+        backbone = GlobalNetwork(reduction_dim=args.reduction_dim, resnet_depth=args.resnet_depth)  # you might need to customize the initialization
+    elif args.backbone.lower() == 'SuperCVNet'.lower():
+        backbone = SuperGlobalNetwork(reduction_dim=args.reduction_dim, resnet_depth=args.resnet_depth)
+    else:
+        raise ValueError(f"Model {args.model} dosen't exist. Only: 'CVNet' or 'SuperCVNet'")
+
 
     transform = transforms.Compose([
         transforms.Resize(512),  # Resize the images to 512x512 (multiples of 64)
@@ -110,18 +110,18 @@ def launch_script(args):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    train_backbone(model=model, 
+    train_rerank(model=model, 
+                backbone=backbone,
                 dataset=dataset, 
                 num_epochs=args.num_epochs, 
                 num_classes=num_classes,
                 batch_size=args.batch_size, 
                 learning_rate=args.learning_rate, 
                 device=device,
-                tau=args.tau, 
-                lambda_cls=args.lambda_cls, 
-                lambda_con=args.lambda_con,
-                no_save=args.no_save,
-                no_progress=args.no_progress)
+                save=args.no_save,
+                progress=args.no_progress
+    )
+
 
 if __name__ == '__main__':
     args = get_args()

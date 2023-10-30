@@ -40,8 +40,8 @@ class GlobalNetwork(torch.nn.Module):
         return x
 
 class MomentumNetwork(GlobalNetwork):
-    def __init__(self, reduction_dim=2048, momentum=0.999):
-        super().__init__(reduction_dim)
+    def __init__(self, reduction_dim=2048, resnet_depth=50, momentum=0.999):
+        super().__init__(reduction_dim, resnet_depth)
         self.momentum = momentum
 
     def load_state_dict(self, state_dict):
@@ -51,12 +51,12 @@ class MomentumNetwork(GlobalNetwork):
                 own_state[name].data.copy_(self.momentum * own_state[name].data + (1 - self.momentum) * param.data)
 
 class CVNetGlobal(torch.nn.Module):
-    def __init__(self, reduction_dim=2048, momentum=0.999):
+    def __init__(self, reduction_dim=2048, resnet_depth=50, momentum=0.999):
         super(CVNetGlobal, self).__init__()
-        self.global_network = GlobalNetwork(reduction_dim)
-        self.momentum_network = MomentumNetwork(reduction_dim, momentum)
+        self.global_network = GlobalNetwork(reduction_dim, resnet_depth)
+        self.momentum_network = MomentumNetwork(reduction_dim, resnet_depth, momentum)
 
-    def forward(self, x, x_positive, with_momentum=True):
+    def forward(self, x, x_positive=None, with_momentum=True):
         global_features = self.global_network(x)
         if with_momentum:
             with torch.no_grad():  # no gradient to momentum features
@@ -79,5 +79,5 @@ class CVNetRerank(torch.nn.Module):
         # i.e. GlobalNetwork.foward(query_image, ret_intermediate=True)
         corr = Correlation.build_crossscale_correlation(query_features, key_features, self.scales, self.conv2ds)
         logits = self.cv_learner(corr)
-        score = self.softmax(logits)[:,1]
+        score = self.softmax(logits)
         return score

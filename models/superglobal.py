@@ -51,8 +51,8 @@ class SuperGlobalNetwork(GlobalNetwork):
 
 
 class SuperMomentumNetwork(SuperGlobalNetwork):
-    def __init__(self, reduction_dim=2048, momentum=0.999):
-        super().__init__(reduction_dim)
+    def __init__(self, reduction_dim=2048, resnet_depth=50, momentum=0.999):
+        super().__init__(reduction_dim, resnet_depth)
         self.momentum = momentum
 
     def load_state_dict(self, state_dict):
@@ -63,10 +63,10 @@ class SuperMomentumNetwork(SuperGlobalNetwork):
 
 
 class SuperCVNetGlobal(torch.nn.Module):
-    def __init__(self, reduction_dim=2048, momentum=0.999):
+    def __init__(self, reduction_dim=2048, resnet_depth=50, momentum=0.999):
         super(SuperCVNetGlobal, self).__init__()
-        self.global_network = SuperGlobalNetwork(reduction_dim)
-        self.momentum_network = SuperMomentumNetwork(reduction_dim, momentum)
+        self.global_network = SuperGlobalNetwork(reduction_dim, resnet_depth)
+        self.momentum_network = SuperMomentumNetwork(reduction_dim, resnet_depth, momentum)
 
     def forward(self, x, x_positive, with_momentum=True):
         global_features = self.global_network(x)
