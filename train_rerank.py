@@ -2,7 +2,7 @@ import argparse, torch, os
 from torchvision.datasets import CIFAR10
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from models import SuperCVNetGlobal, CVNetGlobal, CVNetRerank, SuperGlobalNetwork, GlobalNetwork
+from models import CVNetRerank, GlobalNetwork
 from datasets import GoogleLandMarks, PairedDataset
 from losses import ClassificationLoss, MomentumContrastiveLoss
 import torchvision.transforms as transforms
@@ -62,9 +62,9 @@ def train_rerank(model, backbone, dataset, num_classes, num_epochs, batch_size, 
 def get_args():
     parser = argparse.ArgumentParser(description='Training script for rerank model')
 
-    parser.add_argument('--model', type=str, default='CVNet', help='Name of the model to train')
-    parser.add_argument('--backbone', type=str, default='CVNet', help='Name of the backbone for feature extraction')
-    parser.add_argument('--dataset', type=str, default='Cifar10', help='Name of the dataset to train on')
+    parser.add_argument('--model', type=str, default='CVNet', choices=['CVNet'], help='Name of the model to train')
+    parser.add_argument('--backbone', type=str, default='CVNet', choices=['CVNet'], help='Name of the backbone for feature extraction')
+    parser.add_argument('--dataset', type=str, default='Cifar10', choices=['GoogleLandmarks', 'Cifar10'], help='Name of the dataset to train on')
     parser.add_argument('--num_epochs', type=int, default=25, help='Number of epochs')
     parser.add_argument('--batch_size', type=int, default=144, help='Batch size')
     parser.add_argument('--learning_rate', type=float, default=0.0015, help='Learning rate')
@@ -77,20 +77,11 @@ def get_args():
 
 
 def launch_script(args):
-    if args.model.lower() == 'CVNet'.lower():
+    if args.model == 'CVNet':
         model = CVNetRerank()
-    elif args.model.lower() == 'SuperCVNet'.lower():
-        model = CVNetRerank()
-    else:
-        raise ValueError(f"Model {args.model} dosen't exist. Only: 'CVNet' or 'SuperCVNet'")
 
-    if args.backbone.lower() == 'CVNet'.lower():
+    if args.backbone == 'CVNet':
         backbone = GlobalNetwork(reduction_dim=args.reduction_dim, resnet_depth=args.resnet_depth)  # you might need to customize the initialization
-    elif args.backbone.lower() == 'SuperCVNet'.lower():
-        backbone = SuperGlobalNetwork(reduction_dim=args.reduction_dim, resnet_depth=args.resnet_depth)
-    else:
-        raise ValueError(f"Model {args.model} dosen't exist. Only: 'CVNet' or 'SuperCVNet'")
-
 
     transform = transforms.Compose([
         transforms.Resize(512),  # Resize the images to 512x512 (multiples of 64)
@@ -98,14 +89,12 @@ def launch_script(args):
         transforms.Normalize((0.49139968, 0.48215827, 0.44653124), (0.24703233, 0.24348505, 0.26158768))
     ])
 
-    if args.dataset.lower() == 'Cifar10'.lower():
+    if args.dataset == 'Cifar10':
         dataset = CIFAR10(root='./data', train=True, download=True, transform=transform)
         num_classes = 10
-    elif args.dataset.lower() == 'GoogleLandmarks'.lower():
+    elif args.dataset == 'GoogleLandmarks':
         dataset = GoogleLandMarks(root='./data', split='train', remove_tars=False, verify=False)
         num_classes = 1000
-    else:
-        raise ValueError(f"Dataset {args.dataset} dosen't exist. Only: 'Cifar10' or 'GoogleLandmarks'")
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)

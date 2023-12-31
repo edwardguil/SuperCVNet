@@ -2,7 +2,7 @@ import argparse, torch, os
 from torchvision.datasets import CIFAR10
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from models import SuperCVNetGlobal, CVNetGlobal
+from models import SuperGlobal, CVNetGlobal
 from datasets import GoogleLandMarks, PairedDataset
 from losses import ClassificationLoss, MomentumContrastiveLoss
 import torchvision.transforms as transforms
@@ -72,8 +72,8 @@ def train_backbone(model, dataset, num_classes, num_epochs, batch_size, learning
 def get_args():
     parser = argparse.ArgumentParser(description='Training script for model backbones')
 
-    parser.add_argument('--model', type=str, default='CVNet', help='Name of the model to train')
-    parser.add_argument('--dataset', type=str, default='Cifar10', help='Name of the dataset to train on')
+    parser.add_argument('--model', type=str, default='CVNet', choices=['CVNet'], help='Name of the model to train')
+    parser.add_argument('--dataset', type=str, default='Cifar10', choices=['GoogleLandmarks', 'Cifar10'], help='Name of the dataset to train on')
     parser.add_argument('--num_epochs', type=int, default=25, help='Number of epochs')
     parser.add_argument('--batch_size', type=int, default=1, help='Batch size')
     parser.add_argument('--learning_rate', type=float, default=0.005, help='Learning rate')
@@ -89,12 +89,8 @@ def get_args():
     return parser.parse_args()
 
 def launch_script(args):
-    if args.model.lower() == 'SuperCVNet'.lower():
-        model = SuperCVNetGlobal(args.reduction_dim, args.resnet_depth, args.momentum)
-    elif args.model.lower() == 'CVNet'.lower():
+    if args.model.lower() == 'CVNet'.lower():
         model = CVNetGlobal(args.reduction_dim, args.resnet_depth, args.momentum)
-    else:
-        raise ValueError(f"Model {args.model} dosen't exist. Only: 'SuperCVNet' or 'CVNet'")
 
     transform = transforms.Compose([
         transforms.Resize(512),  # Resize the images to 512x512 (multiples of 64)
@@ -102,15 +98,13 @@ def launch_script(args):
         transforms.Normalize((0.49139968, 0.48215827, 0.44653124), (0.24703233, 0.24348505, 0.26158768))
     ])
 
-    if args.dataset.lower() == 'Cifar10'.lower():
+    if args.dataset == 'Cifar10':
         dataset = CIFAR10(root='./data', train=True, download=True, transform=transform)
         num_classes = 10
-    elif args.dataset.lower() == 'GoogleLandmarks'.lower():
+    elif args.dataset == 'GoogleLandmarks':
         dataset = GoogleLandMarks(root='./data', split='train', remove_tars=False, verify=False)
         num_classes = 1000
-    else:
-        raise ValueError(f"Dataset {args.dataset} dosen't exist. Only: 'Cifar10' or 'GoogleLandmarks'")
-
+        
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
 

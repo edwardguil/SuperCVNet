@@ -48,31 +48,82 @@ class SuperGlobalNetwork(GlobalNetwork):
             out_features = torch.mean(torch.stack(feature_list, 0), 0)
             
         return out_features
+       
+class SuperGlobalRerank(torch.nn.Module):
+    def __init__(self, vector_db, top_x=3, M=10, K=10, beta=2, device=None):
+        self.vector_db = vector_db
+        self.top_x = top_x
+        self.M = M
+        self.K = K
+        self.beta = beta
+        self.device = device if device else torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    def foward(self, query_features):
+        # Get the top M results
+        top_m_ids, top_m_scores, top_m = self.vector_db.get_top_k(query_features, k=self.M)
+        top_m = torch.tensor(top_m).to(self.device)
+        
+        # Construct g_de: extract top K, add the query descriptor, then maxpool
+        top_k = top_m[:, :self.K-1]
+        query_top_k = torch.concat((query_features.unsqueeze(1), top_k), dim=1) 
+        query_top_k, _ = torch.max(query_top_k, dim=1)
+
+        # We then want to find the top-K for each top-M to produce refined top-M (g_dr)
+        top_k_m_scores, top_k_m = [], []
+        for top_m_set in top_m:
+            _, scores, values = self.vector_db.get_top_k(top_m_set, k=self.K-1)
+            top_k_m_scores.append(scores)
+            top_k_m.append(values)
+
+        top_k_m_scores, top_k_m = torch.Tensor(top_k_m_scores).to(self.device), torch.Tensor(top_k_m).to(self.device)
+
+        # For each top_m-top_k set, add the query descriptor to the set
+        expanded_query_features = query_features.unsqueeze(1).unsqueeze(2).expand(-1, top_k_m.size(1), 1, -1)
+        top_k_m = torch.cat((expanded_query_features, top_k_m), dim=2)
+
+        # Add the highest possible score (1) for the image features in the cosine similarities
+        ones = torch.ones((top_k_m.size(0), top_k_m.size(1), 1)).to(self.device)
+        top_k_m_scores = torch.cat((ones, top_k_m_scores), dim=2)
+
+        # Determine the weights (similarity * factor)
+        weights = top_k_m_scores * self.beta
+
+        # Compute the weighted sum of the top K descriptors
+        weighted_top_k = top_k_m * weights.unsqueeze(-1)
+        weighted_sum = weighted_top_k.sum(dim=2)
+
+        # Normalizing factor (1 + sum of weights for each descriptor)
+        normalizing_factor = 1 + weights.sum(dim=2, keepdim=True)
+
+        # Compute refined descriptors - g_dr
+        top_m_refined = weighted_sum / normalizing_factor
+
+        # Normalize
+        top_m_refined = F.normalize(top_m_refined, p=2, dim=-1)
+        query_top_k = F.normalize(query_top_k, p=2, dim=-1)
+
+        # Compute score for Set 1: (g_d, g_dr)
+        score_1 = torch.einsum('ijk,ik->ij', top_m_refined, query_features)        
+        
+        # Set 2: (g_de, g_dr)
+        score_2 = torch.einsum('ijk,ik->ij', top_m_refined, query_top_k)  
+
+        # Final similarity score
+        final_scores = (score_1 + score_2) / 2
+
+        # Extract top x indices from the final scores
+        top_x_scores, top_x_indices = torch.topk(final_scores, self.top_x, dim=1)
+
+        return top_m_ids[top_x_indices], top_x_scores
 
 
-class SuperMomentumNetwork(SuperGlobalNetwork):
-    def __init__(self, reduction_dim=2048, resnet_depth=50, momentum=0.999):
-        super().__init__(reduction_dim, resnet_depth)
-        self.momentum = momentum
-
-    def load_state_dict(self, state_dict):
-        own_state = self.state_dict()
-        for name, param in state_dict.items():
-            if name in own_state:
-                own_state[name].data.copy_(self.momentum * own_state[name].data + (1 - self.momentum) * param.data)
-
-
-class SuperCVNetGlobal(torch.nn.Module):
-    def __init__(self, reduction_dim=2048, resnet_depth=50, momentum=0.999):
-        super(SuperCVNetGlobal, self).__init__()
+class SuperGlobal(torch.nn.Module):
+    def __init__(self, vector_db, reduction_dim=2048, resnet_depth=50, momentum=0.999):
+        super(SuperGlobal, self).__init__()
         self.global_network = SuperGlobalNetwork(reduction_dim, resnet_depth)
-        self.momentum_network = SuperMomentumNetwork(reduction_dim, resnet_depth, momentum)
+        self.rerank_network = SuperGlobalRerank(vector_db)
 
-    def forward(self, x, x_positive, with_momentum=True):
+    def forward(self, x):
         global_features = self.global_network(x)
-        if with_momentum:
-            with torch.no_grad():  # no gradient to momentum features
-                momentum_features = self.momentum_network(x_positive)
-            return global_features, momentum_features
-        else:
-            return global_features
+        top_x_ids, top_x_scores = self.rerank_network(global_features)
+        return top_x_ids, top_x_scores
