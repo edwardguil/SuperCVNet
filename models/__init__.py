@@ -1,2 +1,2 @@
 from .cvnet import CVNetGlobal, GlobalNetwork, MomentumNetwork, CVNetRerank
-from .superglobal import SuperGlobal, SuperGlobalNetwork, SuperMomentumNetwork
+from .superglobal import SuperGlobal, SuperGlobalNetwork, SuperGlobalRerank

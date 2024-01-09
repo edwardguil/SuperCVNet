@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-import torch.functional as F
+import torch.nn.functional as F
     
 # written by Shihao Shao (shaoshihao@pku.edu.cn)
 class Sgem(nn.Module):
