@@ -5,9 +5,7 @@ Thus this repository has been built with the objective to bridge this gap by pro
 
 Note that this repo is still a work in progress. See the to do list. 
 
-## Getting started
-
-### Requirements
+## Requirements
 After cloning the repository, 
 ```bash
 git clone https://github.com/edwardguil/SuperCVNet.git
@@ -21,7 +19,7 @@ then install the dependancies from the requirements.txt
 ```bash
 pip install -r requirements.txt
 ```
-### Minimal Usage
+## Minimal Usage
 The training scripts are contained in train_backbone.py and train_rerank.py. You can run these scripts from the command line, which by default starts a training loop on Cifar10:
 ```bash
 python train_backbone.py 
@@ -32,8 +30,7 @@ from train_backbone import train_backbone
 train_backbone(...)
 ```
 
-## Expanded Usage
-### CVNet Usage
+## CVNet Usage
 CVNet is implemented into two distinct classes:
 ```python
 class CVNetGlobal()
