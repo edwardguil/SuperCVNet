@@ -16,7 +16,7 @@ class AbstractVectorDB(ABC):
     @abstractmethod
     def get_top_k(self, input: Tensor, k: int) -> Tuple[Tensor, Tensor, Tensor]:
         """Abstract method to get the top k most similar vectors to the input vector/s.
-        This function should be able to handle both single and batched inputs.
+        This function should be able to handle batched inputs.
 
         Args:
             input (Tensor): The input vector of shape [batch_size, feature_dim].

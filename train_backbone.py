@@ -2,10 +2,10 @@ import argparse, torch, os
 from torchvision.datasets import CIFAR10
 import torch.optim as optim
 from torch.utils.data import DataLoader
+import torchvision.transforms as transforms
 from models import SuperGlobal, CVNetGlobal
 from datasets import GoogleLandMarks, PairedDataset
 from losses import ClassificationLoss, MomentumContrastiveLoss
-import torchvision.transforms as transforms
 
 def train_backbone(model, dataset, num_classes, num_epochs, batch_size, learning_rate, device, **kwargs):
     tau = kwargs.get('tau', 1/30)
@@ -28,8 +28,7 @@ def train_backbone(model, dataset, num_classes, num_epochs, batch_size, learning
     for epoch in range(num_epochs):
         avg_cls_loss = 0
         avg_con_loss = 0
-        for i, data in enumerate(paired_trainloader):
-            inputs, positive_inputs, labels = data
+        for i, (inputs, positive_inputs, labels) in enumerate(paired_trainloader):
             inputs, positive_inputs, labels = inputs.to(device), positive_inputs.to(device), labels.to(device)
 
             optimizer.zero_grad()
@@ -47,6 +46,7 @@ def train_backbone(model, dataset, num_classes, num_epochs, batch_size, learning
 
             optimizer.step()
 
+            # Update momentum network
             momentum_dict = {k: v.data for k, v in model.global_network.state_dict().items()}
             model.momentum_network.load_state_dict(momentum_dict)
 
